@@ -3,6 +3,7 @@ const bcrypt = require("bcryptjs");
 const Users = require("../model/Users");
 const { OAuth2Client } = require("google-auth-library");
 const { validationResult } = require("express-validator");
+const { attemptToRefreshToken } = require("../util/authUtil");
 
 // https://www.uuidgenerator.net/
 const secret = process.env.JWT_SECRET;
@@ -45,10 +46,11 @@ const authController = {
       const token = jwt.sign(user, secret, { expiresIn: "1h" });
       response.cookie("jwtToken", token, {
         httpOnly: true,
-        secure: true,
-        domain: "localhost",
+        secure: process.env.NODE_ENV === "production",
         path: "/",
+        sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
       });
+
       response.json({ user: user, message: "User authenticated" });
     } catch (error) {
       console.log(error);
@@ -115,12 +117,6 @@ const authController = {
       };
       const token = jwt.sign(userDetails, secret, { expiresIn: "1h" });
 
-      response.cookie("jwtToken", token, {
-        httpOnly: true,
-        secure: true,
-        domain: "localhost",
-        path: "/",
-      });
       response.json({ message: "User registered", user: userDetails });
     } catch (error) {
       console.log(error);
@@ -165,19 +161,24 @@ const authController = {
       };
 
       const token = jwt.sign(user, secret, { expiresIn: "1h" });
-      response.cookie("jwtToken", token, {
+
+      const refreshToken = jwt.sign(user, process.env.JWT_REFRESH_SECRET, {
+        expiresIn: "7d",
+      });
+      response.cookie("refreshToken", refreshToken, {
         httpOnly: true,
         secure: true,
         domain: "localhost",
         path: "/",
       });
+
       response.json({ user: user, message: "User authenticated" });
     } catch (error) {
       console.log(error);
       return response.status(500).json({ message: "Internal server error" });
     }
   },
-  
+
   refreshToken: (request, response) => {
     const refreshToken = request.cookies.refreshToken;
     if (!refreshToken) {
@@ -213,12 +214,13 @@ const authController = {
         const newAccessToken = jwt.sign(updateduser, process.env.JWT_SECRET, {
           expiresIn: "7d",
         });
-        response.cookie("jwtToken", newAccessToken, {
+        response.cookie("jwtToken", token, {
           httpOnly: true,
-          secure: true,
-          domain: "localhost",
+          secure: process.env.NODE_ENV === "production",
           path: "/",
+          sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
         });
+
         response.json({ message: "Acess token refreshed", user: updateduser });
       }
     );

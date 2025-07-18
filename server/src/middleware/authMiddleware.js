@@ -17,6 +17,10 @@ const authMiddleware = {
                 request.user = latestUser;
                 next();
             } catch (error) {
+                const refreshToken = request.cookies?.refreshToken;
+                if(refreshToken){
+                    const {newAccessToken}
+                }
                 return response.status(401).json({
                     error: 'Unauthorized access'
                 });
