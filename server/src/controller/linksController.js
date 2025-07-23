@@ -6,7 +6,7 @@ const Clicks = require("../model/Clicks");
 
 const linksController = {
   create: async (request, response) => {
-    const { campaign_title, original_url, category } = request.body;
+    const { campaign_title, original_url, category, thumbnail } = request.body;
 
     try {
       const user = await Users.findById({ _id: request.user.id });
@@ -15,10 +15,9 @@ const linksController = {
 
       const hasSubscription =
         user.subscription && user.subscription.status === "active";
-      const hasCredits=user.credits>=1;
+      const hasCredits = user.credits >= 1;
 
-      console.log(hasCredits,"credit hai");
-      
+      console.log(hasCredits, "credit hai");
 
       if (!hasSubscription && !hasCredits) {
         return response.status(400).json({
@@ -29,6 +28,7 @@ const linksController = {
       const link = new Links({
         campaignTitle: campaign_title,
         originalUrl: original_url,
+        thumbnail,
         category: category,
         user:
           request.user.role === "admin"
@@ -118,13 +118,15 @@ const linksController = {
         });
       }
 
-      const { campaign_title, original_url, category } = request.body;
+      const { campaign_title, original_url, category, thumbnail } =
+        request.body;
       link = await Links.findByIdAndUpdate(
         linkId,
         {
           campaignTitle: campaign_title,
           originalUrl: original_url,
           category: category,
+          thumbnail
         },
         { new: true }
       ); // new: true flag makes sure mongodb returns updated data after the update operation
@@ -250,6 +252,21 @@ const linksController = {
     } catch (err) {
       console.log(err);
       return response.status(500).json({
+        message: "Internal Server Error",
+      });
+    }
+  },
+
+  createUploadSignature: async (request, response) => {
+    try {
+      const { signature, timestamp } = generateUploadSignature();
+      response.json({
+        signature: signature,
+        timestamp,
+        apiKey: process.env.CLOUDINARY_API_KEY,
+      });
+    } catch (err) {
+      response.status(500).json({
         message: "Internal Server Error",
       });
     }
